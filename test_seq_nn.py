@@ -2,11 +2,12 @@ import os
 
 os.environ["KERAS_BACKEND"] = "tensorflow"
 
+import pathlib
 import random
 import string
 import re
 import pandas as pd
-
+import sys
 from tensorflow import data as tf_data
 from tensorflow import strings as tf_strings
 
@@ -15,20 +16,17 @@ from keras import layers
 from keras import ops
 
 # Downloading the data
-
-splits = {'test': 'af-en/test-00000-of-00001.parquet', 'train': 'af-en/train-00000-of-00001.parquet', 'validation': 'af-en/validation-00000-of-00001.parquet'}
-train = pd.read_parquet("hf://datasets/Helsinki-NLP/opus-100/" + splits["train"])['translation']
-test = pd.read_parquet("hf://datasets/Helsinki-NLP/opus-100/" + splits["test"])['translation']
+text = pd.read_parquet("hf://datasets/Helsinki-NLP/opus-100/af-en/train-00000-of-00001.parquet")
 
 # Parsing the data
 text_pairs = []
 
-for row in test:
+for row in text["translation"]:
     en = row['en']
     af = row['af']
 
-af = "[start] " + af + " [end]"
-text_pairs.append((en, af))
+    af = "[start] " + af + " [end]"
+    text_pairs.append((en, af))
 
 for _ in range(5):
     print(random.choice(text_pairs))
@@ -65,34 +63,35 @@ eng_vectorization = layers.TextVectorization(
     output_mode="int",
     output_sequence_length=sequence_length,
 )
-spa_vectorization = layers.TextVectorization(
+af_vectorization = layers.TextVectorization(
     max_tokens=vocab_size,
     output_mode="int",
     output_sequence_length=sequence_length + 1,
     standardize=custom_standardization,
 )
 train_eng_texts = [pair[0] for pair in train_pairs]
-train_spa_texts = [pair[1] for pair in train_pairs]
+train_af_texts = [pair[1] for pair in train_pairs]
 eng_vectorization.adapt(train_eng_texts)
-spa_vectorization.adapt(train_spa_texts)
+af_vectorization.adapt(train_af_texts)
 
-def format_dataset(eng, spa):
+# Formatting Datasets
+def format_dataset(eng, af):
     eng = eng_vectorization(eng)
-    spa = spa_vectorization(spa)
+    af = af_vectorization(af)
     return (
         {
             "encoder_inputs": eng,
-            "decoder_inputs": spa[:, :-1],
+            "decoder_inputs": af[:, :-1],
         },
-        spa[:, 1:],
+        af[:, 1:],
     )
 
 
 def make_dataset(pairs):
-    eng_texts, spa_texts = zip(*pairs)
+    eng_texts, af_texts = zip(*pairs)
     eng_texts = list(eng_texts)
-    spa_texts = list(spa_texts)
-    dataset = tf_data.Dataset.from_tensor_slices((eng_texts, spa_texts))
+    af_texts = list(af_texts)
+    dataset = tf_data.Dataset.from_tensor_slices((eng_texts, af_texts))
     dataset = dataset.batch(batch_size)
     dataset = dataset.map(format_dataset)
     return dataset.cache().shuffle(2048).prefetch(16)
@@ -101,7 +100,6 @@ def make_dataset(pairs):
 train_ds = make_dataset(train_pairs)
 val_ds = make_dataset(val_pairs)
 
-# 
 for inputs, targets in train_ds.take(1):
     print(f'inputs["encoder_inputs"].shape: {inputs["encoder_inputs"].shape}')
     print(f'inputs["decoder_inputs"].shape: {inputs["decoder_inputs"].shape}')
@@ -302,8 +300,8 @@ transformer.compile(
 transformer.fit(train_ds, epochs=epochs, validation_data=val_ds)
 
 # Decoding test sentences
-spa_vocab = spa_vectorization.get_vocabulary()
-spa_index_lookup = dict(zip(range(len(spa_vocab)), spa_vocab))
+af_vocab = af_vectorization.get_vocabulary()
+af_index_lookup = dict(zip(range(len(af_vocab)), af_vocab))
 max_decoded_sentence_length = 20
 
 
@@ -311,7 +309,7 @@ def decode_sequence(input_sentence):
     tokenized_input_sentence = eng_vectorization([input_sentence])
     decoded_sentence = "[start]"
     for i in range(max_decoded_sentence_length):
-        tokenized_target_sentence = spa_vectorization([decoded_sentence])[:, :-1]
+        tokenized_target_sentence = af_vectorization([decoded_sentence])[:, :-1]
         predictions = transformer(
             {
                 "encoder_inputs": tokenized_input_sentence,
@@ -323,7 +321,7 @@ def decode_sequence(input_sentence):
         sampled_token_index = ops.convert_to_numpy(
             ops.argmax(predictions[0, i, :])
         ).item(0)
-        sampled_token = spa_index_lookup[sampled_token_index]
+        sampled_token = af_index_lookup[sampled_token_index]
         decoded_sentence += " " + sampled_token
 
         if sampled_token == "[end]":
