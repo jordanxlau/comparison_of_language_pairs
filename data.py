@@ -8,18 +8,24 @@ from keras import layers
 from tensorflow import data as tf_data
 from tensorflow import strings as tf_strings
 
+lang1 = 'en' #english
+lang2 = 'nl' #dutch
+
 # Downloading the data
-text = pd.read_parquet("hf://datasets/Helsinki-NLP/opus-100/af-en/train-00000-of-00001.parquet")
+text = pd.read_parquet("hf://datasets/Helsinki-NLP/opus-100/"+lang1+"-"+lang2+"/train-00000-of-00001.parquet")
 
 # Parsing the data
 text_pairs = []
 
 for row in text["translation"]:
-    en = row['en']
-    af = row['af']
+    l1 = lang1
+    l2 = lang2
+    #print("ROW[lang1]: " + "\'"+row[lang1]+"\'")
+    l1 = row[lang1]
+    l2 = row[lang2]
 
-    af = "[start] " + af + " [end]"
-    text_pairs.append((en, af))
+    l2 = "[start] " + l2 + " [end]"
+    text_pairs.append((l1, l2))
 
 for _ in range(5):
     print(random.choice(text_pairs))
@@ -51,40 +57,40 @@ def custom_standardization(input_string):
     return tf_strings.regex_replace(lowercase, "[%s]" % re.escape(strip_chars), "")
 
 
-eng_vectorization = layers.TextVectorization(
+lang1_vectorization = layers.TextVectorization(
     max_tokens=vocab_size,
     output_mode="int",
     output_sequence_length=sequence_length,
 )
-af_vectorization = layers.TextVectorization(
+lang2_vectorization = layers.TextVectorization(
     max_tokens=vocab_size,
     output_mode="int",
     output_sequence_length=sequence_length + 1,
     standardize=custom_standardization,
 )
-train_eng_texts = [pair[0] for pair in train_pairs]
-train_af_texts = [pair[1] for pair in train_pairs]
-eng_vectorization.adapt(train_eng_texts)
-af_vectorization.adapt(train_af_texts)
+train_lang1_texts = [pair[0] for pair in train_pairs]
+train_lang2_texts = [pair[1] for pair in train_pairs]
+lang1_vectorization.adapt(train_lang1_texts)
+lang2_vectorization.adapt(train_lang2_texts)
 
 # Formatting Datasets
-def format_dataset(eng, af):
-    eng = eng_vectorization(eng)
-    af = af_vectorization(af)
+def format_dataset(l1, l2):
+    l1 = lang1_vectorization(l1)
+    l2 = lang2_vectorization(l2)
     return (
         {
-            "encoder_inputs": eng,
-            "decoder_inputs": af[:, :-1],
+            "encoder_inputs": l1,
+            "decoder_inputs": l2[:, :-1],
         },
-        af[:, 1:],
+        l2[:, 1:],
     )
 
 
 def make_dataset(pairs):
-    eng_texts, af_texts = zip(*pairs)
-    eng_texts = list(eng_texts)
-    af_texts = list(af_texts)
-    dataset = tf_data.Dataset.from_tensor_slices((eng_texts, af_texts))
+    lang1_texts, lang2_texts = zip(*pairs)
+    lang1_texts = list(lang1_texts)
+    lang2_texts = list(lang2_texts)
+    dataset = tf_data.Dataset.from_tensor_slices((lang1_texts, lang2_texts))
     dataset = dataset.batch(batch_size)
     dataset = dataset.map(format_dataset)
     return dataset.cache().shuffle(2048).prefetch(16)

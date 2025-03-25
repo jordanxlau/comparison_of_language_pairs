@@ -5,7 +5,7 @@ os.environ["KERAS_BACKEND"] = "tensorflow"
 import keras
 from keras import layers
 
-from data import sequence_length, vocab_size, train_ds, val_ds
+from data import sequence_length, vocab_size, train_ds, val_ds, lang1, lang2
 from utils import PositionalEmbedding, TransformerEncoder, TransformerDecoder
 
 embed_dim = 256
@@ -33,7 +33,7 @@ transformer = keras.Model(
 
 # Training our model
 
-epochs = 1  # This should be at least 30 for convergence
+epochs = 5  # This should be at least 30 for convergence
 
 transformer.summary()
 transformer.compile(
@@ -44,4 +44,4 @@ transformer.compile(
 transformer.fit(train_ds, epochs=epochs, validation_data=val_ds)
 
 # Save the model
-transformer.save("af-en-v1.keras", overwrite=True)
+transformer.save(lang1+"-"+lang2+"-v1.keras", overwrite=True)
