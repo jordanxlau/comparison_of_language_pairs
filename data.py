@@ -8,14 +8,17 @@ from keras import layers
 from tensorflow import data as tf_data
 from tensorflow import strings as tf_strings
 
-lang1 = 'en' #english
-lang2 = 'nl' #dutch
+# Set a random seed, for reproducibility
+random.seed(58)
+
+lang1 = 'ar' #english
+lang2 = 'en' #arabic
 
 # Downloading the data
 text = pd.read_parquet("hf://datasets/Helsinki-NLP/opus-100/"+lang1+"-"+lang2+"/train-00000-of-00001.parquet")
 
 # Limit to 200 000 examples
-text = text.head(200000)
+text = text.head(500000)
 
 # Parsing the data
 text_pairs = []
