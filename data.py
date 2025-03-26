@@ -14,6 +14,9 @@ lang2 = 'nl' #dutch
 # Downloading the data
 text = pd.read_parquet("hf://datasets/Helsinki-NLP/opus-100/"+lang1+"-"+lang2+"/train-00000-of-00001.parquet")
 
+# Limit to 200 000 examples
+text = text.head(200000)
+
 # Parsing the data
 text_pairs = []
 
