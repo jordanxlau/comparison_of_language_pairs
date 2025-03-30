@@ -2,9 +2,12 @@ import random
 
 from data import lang1_vectorization, lang2_vectorization, test_pairs, lang1, lang2
 from keras import ops, models
+import keras_nlp
 
 from utils import PositionalEmbedding, TransformerEncoder, TransformerDecoder
 
+# BLEU Metric
+bleu_metric = keras_nlp.metrics.Bleu()
 # Get saved model
 transformer = models.load_model(lang1+"-"+lang2+"-v1.keras", custom_objects={
     'PositionalEmbedding': PositionalEmbedding,
@@ -40,9 +43,24 @@ def decode_sequence(input_sentence):
             break
     return decoded_sentence
 
+# Evaluate on test set
+ground_truths = []
+predictions = []
 
-test_eng_texts = [pair[0] for pair in test_pairs]
-for _ in range(30):
-    input_sentence = random.choice(test_eng_texts)
-    translated = decode_sequence(input_sentence)
-    print(input_sentence, translated)
+test_inputs = [pair[0] for pair in test_pairs]
+test_references = [pair[1] for pair in test_pairs]
+print(len(test_inputs))
+
+for i in range(len(test_inputs)):
+    input_sentence = test_inputs[i]
+    reference_sentence = test_references[i]
+    translated_sentence = decode_sequence(input_sentence)
+    predictions.append(translated_sentence.split())  # Tokenize prediction
+    ground_truths.append([reference_sentence.split()])  # Tokenized reference
+    
+print("done populating ground truths and predictions")
+
+# Compute BLEU score
+bleu_score = bleu_metric._calculate_bleu_score(ground_truths, predictions)
+print(f"BLEU Score: {bleu_score[0]:.4f}")
+

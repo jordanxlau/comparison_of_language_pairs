@@ -33,7 +33,7 @@ transformer = keras.Model(
 
 # Training our model
 
-epochs = 5  # This should be at least 30 for convergence
+epochs = 10  # This should be at least 30 for convergence
 
 transformer.summary()
 transformer.compile(
