@@ -13,6 +13,7 @@ random.seed(58)
 
 lang1 = 'en'
 lang2 = 'nl'
+epochs = 10  # This should be at least 30 for convergence
 
 # Downloading the data
 text = pd.read_parquet("hf://datasets/Helsinki-NLP/opus-100/"+lang1+"-"+lang2+"/train-00000-of-00001.parquet")
