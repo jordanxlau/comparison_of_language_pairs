@@ -57,6 +57,8 @@ for i in range(len(test_inputs)):
     translated_sentence = decode_sequence(input_sentence)
     predictions.append(translated_sentence.split())  # Tokenize prediction
     ground_truths.append([reference_sentence.split()])  # Tokenized reference
+    print(f"{input_sentence}: {reference_sentence} --> {translated_sentence}\n")
+    print(str(i) + "/75000")
     
 print("done populating ground truths and predictions")
 
